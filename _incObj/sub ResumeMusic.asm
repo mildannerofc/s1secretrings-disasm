@@ -1,0 +1,38 @@
+; ===========================================================================
+; ---------------------------------------------------------------------------
+; Subroutine to resume regular level music after the underwater
+; countdown music in LZ/SBZ3 has started
+; ---------------------------------------------------------------------------
+
+ResumeMusic:
+		cmpi.w	#12,(v_air).w				; more than 12 seconds of air left?
+		bhi.s	.replenishAir				; if yes, branch
+
+		move.w	#bgm_LZ,d0				; play LZ music
+		cmpi.w	#id_LZ_act4,(v_zone_act).w		; check if level is SBZ3 (LZ4)
+		bne.s	.notsbz					; if not, branch
+		move.w	#bgm_SBZ,d0				; play SBZ music instead
+.notsbz:
+	if Revision<>0
+		tst.b	(v_supersonic).w	; is Sonic Super?		<-- add
+		beq.s	.notsuper		; if not, branch		<-- add
+		move.w	#bgm_SuperSonic,d0	; play Super Sonic music	<-- add
+		bra.s	.playselected		;	<-- add
+.notsuper:					;	<-- add
+		tst.b	(v_invinc).w ; is Sonic invincible?
+		beq.s	.notinvinc ; if not, branch
+		move.w	#bgm_Invincible,d0
+.notinvinc:
+		tst.b	(f_lockscreen).w ; is Sonic at a boss?
+		beq.s	.playselected ; if not, branch
+		move.w	#bgm_Boss,d0
+.playselected:
+	endif
+
+		jsr	(QueueSound1).l
+
+.replenishAir:
+		move.w	#30,(v_air).w				; reset air to 30 seconds
+		clr.b	(v_sonicbubbles+bub_time).w		; reset time until next bubble spawn
+		rts						; return
+; End of function ResumeMusic
