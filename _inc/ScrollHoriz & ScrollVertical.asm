@@ -314,7 +314,7 @@ SV_ScrollFast:
 
 	if DynCameraVertical
 ; ---------------------------------------------------------------------------
-; Dynamic vertical camera - distance-based easing (Sonic Renovation-style)
+; Dynamic vertical camera - distance-based easing
 ; Camera speed = abs(Sonic's vertical offset) / 4 + 2, capped at 16px/frame.
 ; Minimum follow speed is 2px/frame; the final 1px is clamped to avoid overshoot.
 ; No frame-history or time-based delay is used.
