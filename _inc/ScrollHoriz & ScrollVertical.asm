@@ -1,4 +1,3 @@
-; ===========================================================================
 ; ---------------------------------------------------------------------------
 ; Subroutine to scroll the level horizontally as Sonic moves (+ redraw flags)
 ; ---------------------------------------------------------------------------
@@ -32,7 +31,7 @@ ScrollHoriz:
 
 ; ScrollHoriz2:
 MoveScreenHoriz:
-	if DynamicCamera
+	if DynCameraHorizontal
 		bsr.w	Dynamic_Camera			; smoothly bias the camera using ground inertia / air velocity
 	endif
 		move.w	(v_cam_x_delay).w,d1			; get current horizontal camera delay value
@@ -55,7 +54,7 @@ MoveScreenHoriz:
 
 	.x_delay:
 		sub.w	(v_screenposx).w,d0			; d0 = Sonic's distance from left edge of screen
-	if DynamicCamera
+	if DynCameraHorizontal
 		; Sonic camera shifts the tracking window with a smoothed, speed-derived focus.
 		move.w	(v_dyncamera).w,d1
 		subi.w	#$1400,d1				; remove neutral pan value
@@ -128,7 +127,7 @@ SH_MoveCameraLeft:
 ; End of function ScrollHoriz
 ; ===========================================================================
 
-	if DynamicCamera
+	if DynCameraHorizontal
 ; ---------------------------------------------------------------------------
 ; Dynamic camera - Naoto NTP (Sonic Clean Engine)
 ; ---------------------------------------------------------------------------
@@ -223,8 +222,7 @@ AutoScroll_Unused:
 
 ScrollVertical:
 		moveq	#0,d1					; clear d1
-
-		move.w	(v_player+obY).w,d0			; get Sonic's current Y-position
+		move.w	(v_player+obY).w,d0			; use Sonic's live Y-position (no time/history delay)
 		sub.w	(v_screenposy).w,d0			; d0 = Sonic's distance from top of screen
 
 		btst	#2,(v_player+obStatus).w		; is Sonic rolling?
@@ -275,32 +273,73 @@ SV_OutsideMid:
 
 ; .slowAndNotShifted:
 SV_ScrollMedium:
+	if DynCameraVertical
+		bra.w	SV_DynamicScroll			; ease toward the vertical focus
+	else
 		move.w	#6<<8,d1				; scroll 6px up/down
 		cmpi.w	#6,d0					; is Sonic 6px below middle area?
 		bgt.s	SV_MoveCameraDown			; if yes, branch
-		cmpi.w	#-6,d0					; is Sonic 6px above middle area?
+		cmpi.w	#-6,d0				; is Sonic 6px above middle area?
 		blt.s	SV_MoveCameraUp				; if yes, branch
 		bra.s	SV_SweetSpot				; branch if in sweet spot
+	endif
 ; ---------------------------------------------------------------------------
 
 ; loc_6684:
 SV_ScrollSlow:
+	if DynCameraVertical
+		bra.w	SV_DynamicScroll			; ease toward the vertical focus
+	else
 		move.w	#2<<8,d1				; scroll 2px up/down
 		cmpi.w	#2,d0					; is Sonic 2px below middle area?
 		bgt.s	SV_MoveCameraDown			; if yes, branch
-		cmpi.w	#-2,d0					; is Sonic 2px above middle area?
+		cmpi.w	#-2,d0				; is Sonic 2px above middle area?
 		blt.s	SV_MoveCameraUp				; if yes, branch
 		bra.s	SV_SweetSpot				; branch if in sweet spot
+	endif
 ; ---------------------------------------------------------------------------
 
 ; loc_6696:
 SV_ScrollFast:
+	if DynCameraVertical
+		bra.w	SV_DynamicScroll			; ease toward the vertical focus
+	else
 		move.w	#16<<8,d1				; scroll 16px up/down
 		cmpi.w	#16,d0					; is Sonic 16px below middle area?
 		bgt.s	SV_MoveCameraDown			; if yes, branch
-		cmpi.w	#-16,d0					; is Sonic 16px above middle area?
+		cmpi.w	#-16,d0				; is Sonic 16px above middle area?
 		blt.s	SV_MoveCameraUp				; if yes, branch
 		bra.s	SV_SweetSpot				; branch if in sweet spot
+	endif
+
+	if DynCameraVertical
+; ---------------------------------------------------------------------------
+; Dynamic vertical camera - distance-based easing (Sonic Renovation-style)
+; Camera speed = abs(Sonic's vertical offset) / 4 + 2, capped at 16px/frame.
+; Minimum follow speed is 2px/frame; the final 1px is clamped to avoid overshoot.
+; No frame-history or time-based delay is used.
+; ---------------------------------------------------------------------------
+SV_DynamicScroll:
+		move.w	d0,d1				; get signed distance from the vertical focus
+		bpl.s	.positive				; make the distance absolute
+		neg.w	d1
+	.positive:
+		cmpi.w	#2,d1				; is the remaining offset smaller than 2px?
+		bhs.s	.calc_speed
+		moveq	#1,d1				; move only the remaining 1px (prevents overshoot)
+		bra.s	.speed_ready
+	.calc_speed:
+		lsr.w	#2,d1				; divide the distance by four
+		addq.w	#2,d1				; minimum camera speed = 2px/frame
+		cmpi.w	#16,d1				; never cross more than one 16px redraw row
+		bls.s	.speed_ready
+		moveq	#16,d1
+	.speed_ready:
+		lsl.w	#8,d1				; convert speed to the camera's 8.8 scroll format
+		tst.w	d0					; is Sonic below or above the vertical focus?
+		bpl.w	SV_MoveCameraDown			; positive offset: move camera down
+		bra.w	SV_MoveCameraUp			; negative offset: move camera up
+	endif
 ; ===========================================================================
 
 ; loc_66A8:
@@ -310,6 +349,10 @@ SV_BottomBoundaryMoving:
 
 ; loc_66AE:
 SV_SweetSpot:
+	if DynCameraVertical
+		tst.w	d0					; is Sonic already exactly on the focus line?
+		bne.w	SV_DynamicScroll			; otherwise use the same smooth approach as the outer zone
+	endif
 		moveq	#0,d1					; clear d1, will be used to calculate new camera Y-position
 		move.w	d0,d1					; copy Sonic's distance from exactly the middle of sweet spot
 		add.w	(v_screenposy).w,d1			; add current screen position

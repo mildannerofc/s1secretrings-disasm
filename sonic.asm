@@ -37,7 +37,11 @@ UnusedOptimization = 0|AllOptimizations
 ;	| If 1, removes dead code and unused data and optimizes tables with unused entries.
 
 DynamicCamera = 0
-;	| If 1, enable Dynamic Camera.
+;	| If 1, enable Dynamic Camera
+DynCameraHorizontal = 0|DynamicCamera
+;	| If 1, enable Dynamic Horizontal Camera.
+DynCameraVertical = 0|DynamicCamera
+; If 1, enable Dynamic Vertical Camera.
 
 EnableSRAM = 1
 ;	| If 1, enable SRAM support
